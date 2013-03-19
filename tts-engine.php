@@ -3,7 +3,7 @@
 Plugin Name: TTS Engine Post to Speech
 Plugin URI: http://www.ttsengine.com
 Description: Free, high quality text to speech for posts(English).
-Version: Version 1.0
+Version: Version 1.1
 Author: <a href="http://www.ttsengine.com">TTSEngine.com</a>
 Author URI: http://www.ttsengine.com
 License: GPLv2
@@ -141,13 +141,26 @@ License: GPLv2
 				if ( ! self::tts_post_added( $post->ID ) ) {
 					$tts_post = array(
 						'id' => $post->ID,
-						'title' => $post->post_title,
-						'content' => $post->post_content
+						'title' => self::filter_content( $post->post_title ),
+						'content' => self::filter_content( $post->post_content )
 					);
 					array_push( $tts_posts, $tts_post );
 				}
 				
 			}
+			
+			// Removes any unwanted syntax (locally) stored with the post content in the database
+			static function filter_content( $content ) {
+				
+				// Remove any wordpress 'shortcode' from content string
+				$content = strip_shortcodes( $content );
+				// Remove any extraneous CSS in curly braces stored with the post content in the database by some themes/plugins
+				$pattern = '/{(.*?)}/';
+				$content = preg_replace( $pattern, ' ', $content );
+				return $content;
+				
+			}
+			
 			
 			// Verifies if a post has already been added
 			static function tts_post_added( $id ) {
