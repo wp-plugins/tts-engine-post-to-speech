@@ -2,7 +2,7 @@
 Author URI: http://www.ttsengine.com
 Plugin URI: http://www.ttsengine.com
 Contributors: anthonymccourt
-Tags: tts, text to speech, speech synthesis, text to talk, text 2 speech, txt to speech, text to speach, tts voices, text to speak, type to speech
+Tags: tts, text to speech, speech synthesis, text to talk, text 2 speech, txt to speech, text to speach, tts voices, text to speak, type to speech, wordpress
 Requires at least: 3.2
 Tested up to: 3.5.1
 Stable tag: 1.1
