@@ -5,7 +5,7 @@ Contributors: anthonymccourt
 Tags: tts, text to speech, speech synthesis, text to talk, text 2 speech, txt to speech, text to speach, tts voices, text to speak, type to speech
 Requires at least: 3.2
 Tested up to: 3.5.1
-Stable tag: 1.0
+Stable tag: 1.1
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -70,6 +70,10 @@ You can report bugs or issues here: [support@ttsengine.com](mailto:support@ttsen
 
 = 1.0 =
 * First release
+
+= 1.1 =
+* Filter applied to post content that is to be read.
+* Wordpress 'shortcode' and extraneous CSS found in database 'post_content' entries is now filtered out.
 
 == Upgrade Notice ==
 
