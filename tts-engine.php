@@ -3,7 +3,7 @@
 Plugin Name: TTS Engine Post to Speech
 Plugin URI: http://www.ttsengine.com
 Description: Free, high quality text to speech for posts(English).
-Version: Version 1.1
+Version: 1.1
 Author: <a href="http://www.ttsengine.com">TTSEngine.com</a>
 Author URI: http://www.ttsengine.com
 License: GPLv2
@@ -24,7 +24,7 @@ License: GPLv2
 	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-	define ('TTS_ENGINE_VERSION', 1.0);
+	define ('TTS_ENGINE_VERSION', 1.1);
 	
 	// Build a static class for unique function calls
 	if ( ! class_exists( 'Scream_TTS_Engine' ) )	{
