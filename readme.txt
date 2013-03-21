@@ -50,7 +50,7 @@ Install manually:
 
 == Frequently Asked Questions ==
 
-= What is pleying the audio in the browser? =
+= What media player is used for audio playback? =
 Playback of audio uses the jQuery HTML5 Audio / Video Library 'jPlayer'.
 
 = What is the Playback audio file format? =
