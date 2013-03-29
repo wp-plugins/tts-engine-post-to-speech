@@ -2,10 +2,10 @@
 Author URI: http://www.ttsengine.com
 Plugin URI: http://www.ttsengine.com
 Contributors: anthonymccourt
-Tags: tts, text to speech, speech synthesis, text to talk, text 2 speech, txt to speech, text to speach, tts voices, text to speak, type to speech, wordpress
+Tags: tts, text to speech, speech synthesis, text to talk, text 2 speech, txt to speech, text to speach, tts voices, text to speak, type to speech
 Requires at least: 3.2
 Tested up to: 3.5.1
-Stable tag: 1.1
+Stable tag: 1.2
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -50,7 +50,7 @@ Install manually:
 
 == Frequently Asked Questions ==
 
-= What media player is used for the audio playback? =
+= What is pleying the audio in the browser? =
 Playback of audio uses the jQuery HTML5 Audio / Video Library 'jPlayer'.
 
 = What is the Playback audio file format? =
@@ -75,6 +75,13 @@ You can report bugs or issues here: [support@ttsengine.com](mailto:support@ttsen
 * Filter applied to post content that is to be read.
 * Wordpress 'shortcode' and extraneous CSS found in database 'post_content' entries is now filtered out.
 
+= 1.2 =
+* Some issues with the 'jPlayer Android Fix' submitting too many API request have been resolved.
+* Enabled backlink now wraps to next line when applicable on mobile browsers.
+
 == Upgrade Notice ==
 
 = 1.0 =
+
+= 1.2 =
+This version fixes an Android bug.

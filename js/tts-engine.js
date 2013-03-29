@@ -231,7 +231,6 @@
 		ttsengine_addErrorEvent();
 		ttsengine_addProgressEvent();
 		ttsengine_addPlayingEvent();
-		ttsengine_addPlayEndEvent();
 
 		// Set the options to be passed to the JPlayer constructors
 		var options = {
@@ -253,7 +252,13 @@
 
 		// Create 2 instances of JPlayer (Android Fix version)
 		ttsengine_jPlayer_1 = new ttsengine_JPlayerAndroidFix("#jquery_jplayer_1", { mp3: ttsengine_sectionURLs[0], wav: ttsengine_sectionURLs[0] }, options);
-		ttsengine_jPlayer_2 = new ttsengine_JPlayerAndroidFix("#jquery_jplayer_2", { mp3: ttsengine_sectionURLs[1], wav: ttsengine_sectionURLs[1] }, options);
+		
+		var j2_media;
+		if (ttsengine_sectionURLs.length > 1)
+			j2_media = { mp3: ttsengine_sectionURLs[1], wav: ttsengine_sectionURLs[1] };
+		else
+			j2_media = { mp3: '', wav: '' };
+		ttsengine_jPlayer_2 = new ttsengine_JPlayerAndroidFix("#jquery_jplayer_2", j2_media, options);
 		
 		ttsengine_jPlayersInitialized = true;
 		
@@ -276,16 +281,16 @@
 		// Alert user friendly error messages for JPlayer
 		switch (event.jPlayer.error.type) {
 			case jQuery.jPlayer.error.URL:
-				alert("Error: Network Connection error."); // (URL error)" + id);
+				alert("Error: Network Connection error.");
 				break;
 			case jQuery.jPlayer.error.NO_SOLUTION:
-				alert("Error: Your browser does not support the audio format"); // (NO SOLUTION)" + id);
+				alert("Error: Your browser does not support the audio format");
 				break;
 			case jQuery.jPlayer.error.NO_SUPPORT:
-				alert("Error: Your browser does not support the audio format"); // (NO SUPPORT)" + id );
+				alert("Error: Your browser does not support the audio format");
 				break;
 			case jQuery.jPlayer.error.URL_NOT_SET:
-				alert("Error: Network Connection error."); // (URL not set)" + id);
+				alert("Error: Network Connection error.");
 				break;
 			case jQuery.jPlayer.error.VERSION:
 				alert("Error: Browser compatibility error.");
@@ -313,25 +318,12 @@
 			if (ttsengine_currentSectionID == 0)
 				ttsengine_resetImageContainer();
 		});
-		
-	}
 
-	// Bind function to jPlayer playback ended event
-	function ttsengine_addPlayEndEvent() {
-	
-		jQuery("#jquery_jplayer_1").bind(jQuery.jPlayer.event.ended, function(event) {
-			onPlayBackEnd(ttsengine_jPlayer_1);
-		});
-			
-		jQuery("#jquery_jplayer_2").bind(jQuery.jPlayer.event.ended, function(event) {
-			onPlayBackEnd(ttsengine_jPlayer_2);
-		});
-		
 	}
 	
 	// Triggered on playback end for a section
-	function onPlayBackEnd(jPlayer) {
-	
+	function onPlayBackEnd( jPlayerID ) {
+
 		// If playing the last section, signal the end of the process
 		if (ttsengine_currentSectionID == (ttsengine_sectionURLs.length - 1)) {
 			ttsengine_resetListenButton();
@@ -343,15 +335,19 @@
 			ttsengine_currentSectionID++;
 			// Start playback of the next section by the other jPlayer instance
 			playNextSection();
-			// Preload the (next + 1) media for this jPlayer if exists
-			if (ttsengine_currentSectionID < (ttsengine_sectionURLs.length - 1))
-				jPlayer.setMedia({ mp3: ttsengine_sectionURLs[ttsengine_currentSectionID + 1], wav: ttsengine_sectionURLs[ttsengine_currentSectionID + 1] });
+			// Preload the (next + 1) section media for this jPlayer if it exists
+			if (ttsengine_currentSectionID < (ttsengine_sectionURLs.length - 1)) {
+				if (jPlayerID  == '#jquery_jplayer_1' )
+					ttsengine_jPlayer_1.setMedia( { mp3: ttsengine_sectionURLs[ttsengine_currentSectionID + 1], wav: ttsengine_sectionURLs[ttsengine_currentSectionID + 1] } );
+				else
+					ttsengine_jPlayer_2.setMedia( { mp3: ttsengine_sectionURLs[ttsengine_currentSectionID + 1], wav: ttsengine_sectionURLs[ttsengine_currentSectionID + 1] } );
+			}
 		}	
 	}
 	
 	
 	function playNextSection() {
-
+		
 		if ((ttsengine_currentSectionID % 2) == 0)
 			ttsengine_jPlayer_1.play();
 		else
@@ -406,7 +402,7 @@
 				this.id = id;
 				this.media = media;
 				this.options = options;
-				
+
 				// Make a jQuery selector of the id, for use by the jPlayer instance.
 				this.player = jQuery(this.id);
 				
@@ -414,7 +410,7 @@
 				this.player.bind(jQuery.jPlayer.event.ready, function(event) {
 					// Use this fix's setMedia() method.
 
-					if (this.id == "jquery_jplayer_1")
+					if (id == "#jquery_jplayer_1")
 						self.setMedia(self.media).play();
 					else if (ttsengine_sectionURLs.length > 1)
 						self.setMedia(self.media);
@@ -444,7 +440,7 @@
 						if (self.endedFix) {
 							self.endedFix = false;
 							setTimeout(function() {
-								self.setMedia(self.media);
+								onPlayBackEnd(id);
 							}, 0);
 							// what if it was looping?
 						}
@@ -460,6 +456,12 @@
 								}, 0);
 							}
 						}
+					});
+				}
+				// Add play end event for all other non-Android instances
+				else {
+					this.player.bind(jQuery.jPlayer.event.ended, function(event) {
+						onPlayBackEnd(id);
 					});
 				}
 
