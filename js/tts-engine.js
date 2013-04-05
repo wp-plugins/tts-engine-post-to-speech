@@ -1,20 +1,40 @@
 	/*
-	Two instances of JPlayer are used so that the audio for a post's paragraph is requested from the
-	TTSEngine.com API and loaded into an instance of JPlayer while the previous paragraph's audio is being
-	played by the other JPlayer instance.
+	** Two instances of JPlayer are used so that the audio for a post's paragraph is requested from the
+	** TTSEngine.com API and loaded into an instance of JPlayer while the previous paragraph's audio is being
+	** played by the other JPlayer instance.
+	**
+	** For mobile Safari browsers only one instance of jPlayer can be used and audio cannot be preloaded.
+	** In this case, the audio segments are streamed through one instance of jPlayer.
 	*/
 	
 	jQuery.noConflict();
-	
+	var ttsengine_audioPlayer;		// To be used by mobile Safari
 	var ttsengine_jPlayersInitialized = false;
 	var ttsengine_inProcess = false;
 	var ttsengine_currentPostId;
-	var ttsengine_isMSIE;		// Identify Internet Explorer Browser
-	var ttsengine_jPlayer_1; 	// 1st JPlayer instance
-	var ttsengine_jPlayer_2; 	// 2nd JPlayer instance
+	var ttsengine_isMSIE;			// Identify Internet Explorer Browser
+	var ttsengine_jPlayer_1; 		// 1st JPlayer instance
+	var ttsengine_jPlayer_2; 		// 2nd JPlayer instance
 	var ttsengine_sectionURLs;
 	var ttsengine_currentSectionID;
-	
+	var ttsengine_isMobileSafari;	// Identify Mobile Safari
+	var ttsengine_mobileSafariUrl;
+	var ttsengine_jPlayerOptions = {
+			swfPath:  vars.jplayer_swf,
+			supplied: "mp3, wav",
+			cssSelectorAncestor: "",	
+			cssSelector: {
+				play:"",pause:"",stop:"",mute:"",unmute:"",currentTime:"",duration:"",
+				videoPlay:"",seekBar:"",playBar:"",volumeBar:"",volumeBarValue:"",volumeMax:"",fullScreen:"",restoreScreen:"",repeat:"",repeatOff:"",gui:"",noSolution:""
+			},
+			size: { 
+				width: "0px", height: "0px" 
+			},
+			errorAlerts: false,
+			warningAlerts: false,
+			volume: 1.0,
+			preload: "auto"
+		};
 
 	// Call 'ttsengine_onPageLoad()' when the page finishes loading
 	ttsengine_addLoadEvent(ttsengine_onPageLoad);
@@ -33,7 +53,6 @@
 				func();
 			}
 		}
-	
 	}
 
 	// Page load function
@@ -43,7 +62,7 @@
 		ttsengine_extendButtonClassForBrowser();
 
 		// Add jPlayer Instances to body
-		ttsengine_addJPlayers();
+		ttsengine_addPlayers();
 	}
 	
 	// Extend the listen buttons CSS class depending on the rendering browser
@@ -51,14 +70,12 @@
 	
 		// Check if the browser is IE		
 		var isMSIE_check = /*@cc_on!@*/0;
-		
 		if (isMSIE_check)
 			ttsengine_isMSIE = true;
 		else
 			ttsengine_isMSIE = false;
 			
-		var listenButtons = document.getElementsByName('listenbutton');
-		
+		var listenButtons = document.getElementsByName('listenbutton');	
 		for ( var i = 0; i < listenButtons.length; i++ ) {
 			if (ttsengine_isMSIE)
 				listenButtons[i].className += " listenbuttonIE";
@@ -66,21 +83,34 @@
 				listenButtons[i].className += " listenbutton";
 		}
 		
+		// Check for moble safari
+		var userAgent = window.navigator.userAgent;
+		ttsengine_isMobileSafari = (((userAgent.indexOf('iPad') !== -1) || (userAgent.indexOf('iPhone') !== -1))
+									&& (userAgent.indexOf('Safari') !== -1));
 	}
 	
 	// Add the jPlayers to the start of the body tag
-	function ttsengine_addJPlayers() {
-	
-		var jp1 = document.createElement("div");
-		jp1.setAttribute('class', 'tts-jplayer');
-		jp1.id = "jquery_jplayer_1";
+	function ttsengine_addPlayers() {
 		
-		var jp2 = document.createElement("div");
-		jp2.setAttribute('class', 'tts-jplayer');
-		jp2.id = "jquery_jplayer_2";
-		
-		document.body.insertBefore(jp2, document.body.firstChild);
-		document.body.insertBefore(jp1, document.body.firstChild);
+		if (ttsengine_isMobileSafari) {
+			var audioDiv = document.createElement("div");
+			audioDiv.id = 'audioDiv';
+			audioDiv.setAttribute("style", "width:0px");
+			audioDiv.setAttribute("style", "height:0px");
+			document.body.insertBefore(audioDiv, document.body.firstChild);
+		}
+		else {
+			var jp1 = document.createElement("div");
+			jp1.setAttribute('class', 'tts-jplayer');
+			jp1.id = "jquery_jplayer_1";	
+			
+			var jp2 = document.createElement("div");
+			jp2.setAttribute('class', 'tts-jplayer');
+			jp2.id = "jquery_jplayer_2";
+				
+			document.body.insertBefore(jp2, document.body.firstChild);	
+			document.body.insertBefore(jp1, document.body.firstChild);
+		}
 		
 	}
 	
@@ -95,7 +125,7 @@
 
 	// Function called to start the text to speech process for a post
 	function ttsengine_processTTS(listenButton) {
-
+		
 		var id = listenButton.id;
 		
 		// Halt an existing process if initiated
@@ -111,16 +141,98 @@
 		// Add a stop function to the buttons' click event
 		listenButton.onclick = function(){ ttsengine_haltProcess(); }
 		ttsengine_modifyButtonText("Stop");
-
-		// Get the post's content associated with the clicked button by ID
-		var text = ttsengine_getPostText(ttsengine_currentPostId);
-			
+		
 		// Display the loading image
 		var imagecontainer = document.getElementById("tts-imagecontainer" + ttsengine_currentPostId);
 		imagecontainer.style.visibility = "visible";
+
+		if (ttsengine_isMobileSafari) {
+			var text = ttsengine_getMobileSafariPostText(ttsengine_currentPostId);
+			ttsengine_createMobileSafariUrl(text);
+			ttsengine_playMobileSafariUrl();
+		}
+		else {
+			// Get the post's content associated with the clicked button by ID
+			var text = ttsengine_getPostText(ttsengine_currentPostId);
+			// Get a secure urls for the TTSEngine API call
+			ttsengine_ajaxGetSecureRequestURLs(text);
+		}
+	}
+	
+	// Create the tts request urls to be used by mobile Safari browsers
+	function ttsengine_createMobileSafariUrl(text) {
+	
+		var synthUrl = "http://api.ttsengine.com/v1/tts";
+		var key = "7502fbb847c77fae880a689351987c43";
+		var allSections = text.split("\r\n");
+		var tmp = '';
+		var parsedText = '';
 		
-		// Get a secure urls for the TTSEngine API call
-		ttsengine_ajaxGetSecureRequestURLs(text);
+		for ( var i = 0; i < allSections.length; i++ ) {
+			var matches = allSections[i].match( /[a-zA-Z]/ );
+			if ( matches != null ) {
+				tmp = allSections[i];
+				
+				while ( tmp.length < 100 && ( i < ( allSections.length - 1 ) ) ) {
+					i++;
+					matches = allSections[i].match( /[a-zA-Z]/ );
+					if ( matches != null )
+						tmp += allSections[i];
+				}
+				
+				parsedText += tmp;
+			}
+		}
+		
+		var array = { "text": parsedText, "format": "auto", "key": key };
+		var getParams = jQuery.param(array);
+		ttsengine_mobileSafariUrl = synthUrl + '?' + getParams;
+
+	}
+	
+	// Get the post text to be processed for Mobile Safari
+	function ttsengine_getMobileSafariPostText(id) {
+		var text = '';
+		
+		for( var i = 0; i < vars.tts_posts.length; i++ ) {
+			if ( parseInt(vars.tts_posts[i].id) == parseInt(id) ) {
+				text = vars.tts_posts[i].title + "\r\n" + vars.tts_posts[i].content;
+				text = ttsengine_html_strip(text);
+				text = text.replace(/\r\n/g, '.\r\n');
+				text = text.replace(/\n/g, '.\r\n');
+			}
+		}
+		
+		return text;
+	}
+	
+	// Start playback of the post Urls on Safari
+	function ttsengine_playMobileSafariUrl() {
+	
+		if (typeof ttsengine_audioPlayer !== 'undefined') {
+			document.getElementById("audioDiv").removeChild(ttsengine_audioPlayer);
+		}
+		ttsengine_audioPlayer = new Audio();
+		document.getElementById("audioDiv").appendChild(ttsengine_audioPlayer);
+		ttsengine_audioPlayer.addEventListener('ended', ttsengine_onMobileSafariPlayBackEnd, false);
+		ttsengine_audioPlayer.addEventListener('playing', ttsengine_onMobileSafariPlaying, false);
+		ttsengine_audioPlayer.src = ttsengine_mobileSafariUrl;
+		ttsengine_audioPlayer.load();
+		ttsengine_audioPlayer.play();
+
+	}	
+	
+	function ttsengine_onMobileSafariPlayBackEnd() {
+		
+		ttsengine_resetListenButton();
+		ttsengine_inProcess = false;
+
+	}
+	
+	function ttsengine_onMobileSafariPlaying() {
+	
+		ttsengine_resetImageContainer();
+		
 	}
 	
 	// Get the Post Text to be processed and URI encode it.
@@ -148,6 +260,9 @@
 	
 		ttsengine_resetListenButton();
 		ttsengine_resetImageContainer();
+		
+		if (ttsengine_isMobileSafari)
+			ttsengine_audioPlayer.pause();
 		if (ttsengine_jPlayer_1)
 			ttsengine_jPlayer_1.clearMedia();
 		if (ttsengine_jPlayer_2)
@@ -184,8 +299,12 @@
 	
 		var ajaxConn = ttsengine_ajaxRequestConnection();
 		if (ajaxConn == null) return;
-	
-		var ajaxParams = "text=" + text + "&siteurl=" + vars.site_url + "&linkenabled=" + vars.link_enabled + "&abspath=" + vars.abs_path;
+
+		var ajaxParams = 	"text=" + text + 
+							"&siteurl=" + vars.site_url + 
+							"&linkenabled=" + vars.link_enabled + 
+							"&abspath=" + vars.abs_path +
+							"&mobilesafari=" + ttsengine_isMobileSafari;
 
 		ajaxConn.open("POST", vars.ajax, true);
 		ajaxConn.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
@@ -198,82 +317,64 @@
 					alert(response.error);
 					ttsengine_haltProcess();
 				}
-				else {	
-					ttsengine_sectionURLs = response.secureRequestURLs;
+				else {
+					ttsengine_sectionURLs = response.secureRequestURLs;		
 					ttsengine_playTTS();
 				}
 			}
 		}
 		
 		ajaxConn.send(ajaxParams);
-		
 	}
-		
+	
 	// Initializes JPlayer for a first playback or sets the media URL for subsequent playbacks
 	function ttsengine_playTTS() {
 	
 		ttsengine_currentSectionID = 0;
-
+		var firstUrl = ttsengine_sectionURLs[0];
+		var secondUrl = ( (ttsengine_sectionURLs.length > 1) ? ttsengine_sectionURLs[1] : '' );
+		
 		if (ttsengine_jPlayersInitialized) {
-			ttsengine_jPlayer_1.setMedia( {mp3: ttsengine_sectionURLs[0], wav: ttsengine_sectionURLs[0]} ).play();
+			ttsengine_jPlayer_1.setMedia( { mp3: firstUrl, wav: firstUrl } ).play();
 			if (ttsengine_sectionURLs.length > 1)
-				ttsengine_jPlayer_2.setMedia( {mp3: ttsengine_sectionURLs[1], wav: ttsengine_sectionURLs[1]} );
+				ttsengine_jPlayer_2.setMedia( { mp3: secondUrl, wav: secondUrl } );
 		}
 		else
-			ttsengine_initializeJPlayers();
-			
+			ttsengine_initializeJPlayers(firstUrl, secondUrl);
+	
 	}
 	
 	// Initializes JPlayers
-	function ttsengine_initializeJPlayers() {
+	function ttsengine_initializeJPlayers( firstUrl, secondUrl ) {
 
 		// Add JPlayer Events
-		ttsengine_addErrorEvent();
-		ttsengine_addProgressEvent();
-		ttsengine_addPlayingEvent();
-
-		// Set the options to be passed to the JPlayer constructors
-		var options = {
-			swfPath:  vars.jplayer_swf,
-			supplied: "mp3, wav",	
-			cssSelectorAncestor: "",	
-			cssSelector: {
-				play:"",pause:"",stop:"",mute:"",unmute:"",currentTime:"",duration:"",
-				videoPlay:"",seekBar:"",playBar:"",volumeBar:"",volumeBarValue:"",volumeMax:"",fullScreen:"",restoreScreen:"",repeat:"",repeatOff:"",gui:"",noSolution:""
-			},
-			size: { 
-				width: "0px", height: "0px" 
-			},
-			errorAlerts: false,
-			warningAlerts: false,
-			volume: 1.0,
-			preload: "auto"
-		};
+		ttsengine_addErrorEvent("#jquery_jplayer_1");
+		ttsengine_addErrorEvent("#jquery_jplayer_2");
+		ttsengine_addProgressEvent("#jquery_jplayer_1");
+		ttsengine_addPlayingEvent("#jquery_jplayer_1");
 
 		// Create 2 instances of JPlayer (Android Fix version)
-		ttsengine_jPlayer_1 = new ttsengine_JPlayerAndroidFix("#jquery_jplayer_1", { mp3: ttsengine_sectionURLs[0], wav: ttsengine_sectionURLs[0] }, options);
+		ttsengine_jPlayer_1 = new ttsengine_JPlayer( "#jquery_jplayer_1", 
+													{ mp3: firstUrl, wav: firstUrl }, 
+													ttsengine_jPlayerOptions );
 		
-		var j2_media;
-		if (ttsengine_sectionURLs.length > 1)
-			j2_media = { mp3: ttsengine_sectionURLs[1], wav: ttsengine_sectionURLs[1] };
-		else
-			j2_media = { mp3: '', wav: '' };
-		ttsengine_jPlayer_2 = new ttsengine_JPlayerAndroidFix("#jquery_jplayer_2", j2_media, options);
+
+		ttsengine_jPlayer_2 = new ttsengine_JPlayer( "#jquery_jplayer_2", 
+													{ mp3: secondUrl, wav: secondUrl }, 
+													ttsengine_jPlayerOptions );
 		
 		ttsengine_jPlayersInitialized = true;
 		
 	}
 	
 	// Catches the JPlayer error events and types
-	function ttsengine_addErrorEvent() {
-			
-		jQuery("#jquery_jplayer_1").bind(jQuery.jPlayer.event.error, function(event) { onError(event, "#jquery_jplayer_1"); });
-		jQuery("#jquery_jplayer_2").bind(jQuery.jPlayer.event.error, function(event) { onError(event, "#jquery_jplayer_2"); });
-			
+	function ttsengine_addErrorEvent(jPlayerID) {
+	
+		jQuery(jPlayerID).bind(jQuery.jPlayer.event.error, function(event) { onError(event); });
+		
 	}
 	
-	
-	function onError(event, id) {
+	function onError(event) {
 	
 		ttsengine_resetListenButton();
 		ttsengine_resetImageContainer();
@@ -302,19 +403,18 @@
 	}
 	
 	// Remove the loading image when the first instance of JPlayer Progress event and Playing events are triggered. Which one is triggered will depend on the displaying browser.
-	function ttsengine_addProgressEvent() {
+	function ttsengine_addProgressEvent(jPlayerID) {
 	
-		jQuery("#jquery_jplayer_1").bind(jQuery.jPlayer.event.progress, function(event) {
+		jQuery(jPlayerID).bind(jQuery.jPlayer.event.progress, function(event) {
 			if (ttsengine_currentSectionID == 0)
 				ttsengine_resetImageContainer();
 		});
 		
 	}
 	
+	function ttsengine_addPlayingEvent(jPlayerID) {
 	
-	function ttsengine_addPlayingEvent() {
-	
-		jQuery("#jquery_jplayer_1").bind(jQuery.jPlayer.event.playing, function(event) {
+		jQuery(jPlayerID).bind(jQuery.jPlayer.event.playing, function(event) {
 			if (ttsengine_currentSectionID == 0)
 				ttsengine_resetImageContainer();
 		});
@@ -322,7 +422,7 @@
 	}
 	
 	// Triggered on playback end for a section
-	function onPlayBackEnd( jPlayerID ) {
+	function onPlayBackEnd(jPlayerID) {
 
 		// If playing the last section, signal the end of the process
 		if (ttsengine_currentSectionID == (ttsengine_sectionURLs.length - 1)) {
@@ -342,9 +442,8 @@
 				else
 					ttsengine_jPlayer_2.setMedia( { mp3: ttsengine_sectionURLs[ttsengine_currentSectionID + 1], wav: ttsengine_sectionURLs[ttsengine_currentSectionID + 1] } );
 			}
-		}	
+		}
 	}
-	
 	
 	function playNextSection() {
 		
@@ -386,7 +485,7 @@
 	// Android 2.3 fix for JPlayer                       //
 	///////////////////////////////////////////////////////
 
-	var ttsengine_JPlayerAndroidFix = (function(jQuery) {
+	var ttsengine_JPlayer = (function(jQuery) {
 	
 		var fix = function(id, media, options) {
 			this.playFix = false;
@@ -410,11 +509,13 @@
 				this.player.bind(jQuery.jPlayer.event.ready, function(event) {
 					// Use this fix's setMedia() method.
 
-					if (id == "#jquery_jplayer_1")
+					if (id == "#jquery_jplayer_1") {
 						self.setMedia(self.media).play();
+					}
+					// i.e. if #jquery_jplayer_2 and media is set
 					else if (ttsengine_sectionURLs.length > 1)
 						self.setMedia(self.media);
-					
+										
 				});
 				
 				if (jQuery.jPlayer.platform.android) {
@@ -480,11 +581,9 @@
 				return this;
 			},
 			setMedia: function(media) {
-				this.media = media;
-				
+				this.media = media;	
 				// Apply Android fixes
 				this.resetAndroid();
-
 				// Set the media
 				this.player.jPlayer("setMedia", this.media);
 				return this;
@@ -501,7 +600,7 @@
 			},
 			resetAndroid: function() {
 				// Apply Android fixes
-				if (jQuery.jPlayer.platform.android) {
+				if (jQuery.jPlayer.platform.android || ttsengine_isMobileSafari) {
 					this.playFix = false;
 					this.playFixRequired = true;
 					this.endedFix = true;

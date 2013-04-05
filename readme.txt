@@ -5,7 +5,7 @@ Contributors: anthonymccourt
 Tags: tts, text to speech, speech synthesis, text to talk, text 2 speech, txt to speech, text to speach, tts voices, text to speak, type to speech
 Requires at least: 3.2
 Tested up to: 3.5.1
-Stable tag: 1.2
+Stable tag: 1.3
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -79,9 +79,15 @@ You can report bugs or issues here: [support@ttsengine.com](mailto:support@ttsen
 * Some issues with the 'jPlayer Android Fix' submitting too many API request have been resolved.
 * Enabled backlink now wraps to next line when applicable on mobile browsers.
 
+= 1.3 =
+* iOS Support included.
+
 == Upgrade Notice ==
 
 = 1.0 =
 
 = 1.2 =
 This version fixes an Android bug.
+
+= 1.3 =
+iOS Support Enabled.
