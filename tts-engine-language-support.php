@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /*
 tts-engine-language-support.php:	Creates the structures used to provide the language data support to the 
 									admin settings menu.
