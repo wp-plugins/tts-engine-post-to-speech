@@ -21,6 +21,7 @@ tts-engine-get-urls.php: 	This file receives an ajax call from javascript with t
 		'body' => array(
 			'appid' => 'd666d54bd05d5191f49f8be14d3cf91d',
 			'text' => $_POST['text'],
+			'language' => $_POST['language'],
 			'siteurl' => $_POST['siteurl'],
 			'linkenabled' => $_POST['linkenabled']
 			),

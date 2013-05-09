@@ -2,8 +2,8 @@
 /*
 Plugin Name: TTS Engine Post to Speech
 Plugin URI: http://www.ttsengine.com
-Description: Free, high quality text to speech for posts(English).
-Version: 1.3
+Description: Free, high quality text to speech for your posts - 52 languages supported.
+Version: 2.0
 Author: <a href="http://www.ttsengine.com">TTSEngine.com</a>
 Author URI: http://www.ttsengine.com
 License: GPLv2
@@ -16,23 +16,26 @@ License: GPLv2
 	
 	This program is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 	GNU General Public License for more details.
 	
 	You should have received a copy of the GNU General Public License
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
-
-	define ('TTS_ENGINE_VERSION', 1.3);
+	
+	include_once( plugin_dir_path(__FILE__).'tts-engine-language-support.php' );
+	define ('TTS_ENGINE_VERSION', '2.0' );
 	
 	// Build a static class for unique function calls
 	if ( ! class_exists( 'Scream_TTS_Engine' ) )	{
-		
-		// This object will store information on the posts being displayed on the current page
-		$tts_posts = array();
 			
-		class Scream_TTS_Engine	{					
+		$tts_posts = array();	// To store information on the posts being displayed on the current page
+		$languages_data;		// All supported languages data
+		$language;				// Current selected language
+		$language_phrases;		// Plugin text for the current selected language
+			
+		class Scream_TTS_Engine	{				
 			
 			// Calls the enqueue fucntions for both CSS and JavaScript for inclusion in the non-admin blog pages
 			public static function enqueue_head_elements() {
@@ -63,7 +66,7 @@ License: GPLv2
 				
 				// Register the Main plugin javascript file
 				wp_register_script( 'ttsengine', plugins_url( '/js/tts-engine.js', __FILE__ ), array( 'jquery', 'swfobject', 'jplayer' ) );
-
+				
 			}
 			
 			
@@ -71,7 +74,7 @@ License: GPLv2
 			public static function add_plugin_elements( $content )	{
 
 				// To access the post ID within the 'loop'
-				global $post;
+				global $post, $language_phrases;
 				$post_id = $post->ID;
 				
 				// Add to tts posts if being displayed on current page
@@ -89,7 +92,7 @@ License: GPLv2
 				$button_and_link_html = '<div class="tts-container">
 								<div class="tts-buttoncontainer">
 								<a name="listenbutton" style="color:#505261; outline:0; text-decoration:none;" class="listenbuttonbase" href="javascript:void(null)" id="listenbutton'.$post_id.'" onclick="ttsengine_processTTS(this);">
-								<em></em>Listen to this Post</a></div>
+								<em></em>'.$language_phrases[1].'</a></div>
 								<div class="tts-imagecontainer" id="tts-imagecontainer'.$post_id.'"></div>
 								<div class="tts-linkcontainer"><span style ="white-space: nowrap; font-size:12px;">Voice-over by
 								<a href="http://www.ttsengine.com">TTSEngine.com</a>
@@ -99,7 +102,7 @@ License: GPLv2
 								<div class="tts-buttoncontainer">
 								<a name="listenbutton" style="color:#505261; outline:0; text-decoration:none;" class="listenbuttonbase" href="javascript:void(null)" id="listenbutton'.$post_id.'" onclick="ttsengine_processTTS(this);">
 								<em></em>
-								Listen to this Post</a></div>
+								'.$language_phrases[1].'</a></div>
 								<div class="tts-imagecontainer" id="tts-imagecontainer'.$post_id.'"></div></div>';
 				
 				$link_html = 	'<div class="tts-container">
@@ -179,7 +182,7 @@ License: GPLv2
 			// Localizes the main JavaScript file
 			public static function localize_script() {
 				
-				global $tts_posts;
+				global $tts_posts, $language, $language_phrases;
 
 				// Enqueue the script already registered
 				wp_enqueue_script('ttsengine');
@@ -187,11 +190,18 @@ License: GPLv2
 				// Create an array of the variables to localize
 				$loc_variables = array(
 					'ajax' => plugins_url( 'tts-engine-get-urls.php', __FILE__ ),
+					'ajax_safari' => plugins_url( 'tts-engine-get-safari-urls.php', __FILE__ ),
+					'ajax_iOS6' => plugins_url( 'tts-engine-get-iOS6-url.php', __FILE__ ),
 					'jplayer_swf' => plugins_url( 'Jplayer.swf', __FILE__ ),
 					'site_url' => get_site_url(),
 					'abs_path' => ABSPATH,
 					'link_enabled' => ( ( get_option( 'ttsengine_display_link' ) == 'checked' ) ? 'true' : 'false' ),
 					'tts_posts' => $tts_posts,
+					'language' => $language,
+					'listen_phrase' => $language_phrases[1],
+					'loading_phrase' => $language_phrases[2],
+					'play_phrase' => $language_phrases[3],
+					'stop_phrase' => $language_phrases[4]
 					);	
 				
 				wp_localize_script( 'ttsengine', 'vars', $loc_variables );
@@ -201,7 +211,7 @@ License: GPLv2
 			// Adds the plugin options page
 			public static function create_admin_options() {
 					
-				add_options_page( 'TTS Engine Plugin Page', 'TTS Engine Menu', 'manage_options', 'ttsengine', 'Scream_TTS_Engine::options_page' );
+				add_options_page( 'TTS Engine Plugin Page', 'TTS Engine Menu', 'manage_options', 'ttsengine-settings', 'Scream_TTS_Engine::options_page' );
 				
 			}
 			
@@ -217,6 +227,10 @@ License: GPLv2
 				if ( isset( $_POST['link_location_bottom'] ) && $_POST['link_location_bottom'] == 'on' ) { $link_location_bottom = 'checked'; } else { $link_location_bottom = ''; }  
 				update_option( 'ttsengine_link_location_bottom', $link_location_bottom );
 				
+				if ( isset( $_POST['language-selector'] ) ) { update_option( 'ttsengine_language', $_POST['language-selector'] ); }
+				
+				// Update the local language settings
+				self::get_language_setting();
 			}
 			
 			// Creates the plugin options page
@@ -229,7 +243,7 @@ License: GPLv2
 				
 				// Update the options if the page options form was submitted. The form is submitted to the options page itself.
 				if ( isset( $_POST['update_options'] ) &&  $_POST['update_options'] == 'true' ) {
-					self::options_update(); 
+					self::options_update();
 				}
 				
 				// Display the HTML content
@@ -238,16 +252,22 @@ License: GPLv2
 				<h2>TTS Engine Post to Speech Options</h2>	
 				<form method="post" action="">
 				<input type="hidden" name="update_options" value="true" />
-				<h4><input type="checkbox" name="display_link" id="display_link" 
+				<h3>Display Options</h3>
+				<input type="checkbox" name="display_link" id="display_link" 
 				<?php echo get_option('ttsengine_display_link'); ?>
-				/> Display link to "TTSEngine.com" </h4>
-				<h4><input type="checkbox" name="button_location_bottom" id="button_location_bottom" 
+				/> Display link to "TTSEngine.com"<br/><br/>
+				<input type="checkbox" name="button_location_bottom" id="button_location_bottom" 
 				<?php echo get_option('ttsengine_button_location_bottom'); ?>
-				/> Locate Listen button after post body ( Default location is before post body ) </h4>
-				<h4><input type="checkbox" name="link_location_bottom" id="link_location_bottom" 
+				/> Locate Listen button after post body ( Default location is before post body )<br/><br/>
+				<input type="checkbox" name="link_location_bottom" id="link_location_bottom" 
 				<?php echo get_option('ttsengine_link_location_bottom'); ?>
-				/> Locate "TTSEngine.com" Link after post body ( If Displayed. Default location is before post body ) </h4>
-				<p><input type="submit" value="Update Options" class="button" /></p>
+				/> Locate "TTSEngine.com" Link after post body ( If Displayed. Default location is before post body )<br/>
+				<h3>Language Options</h3>
+				<div style="float:left; " >Select Posts Language :
+				<?php echo self::display_langauge_menu(); ?>
+				</div><br/>
+				<p><small>*The language selected must match the post text language for correct speech synthesis.</small></p><br/>
+				<div style="clear:both;"><input type="submit" value="Update Options" class="button" /></div>
 				</form>
 				</div>
 				<?php
@@ -256,7 +276,7 @@ License: GPLv2
 			// Adds a 'Settings' link for the plugin options
 			public static function create_settings_link( $links ) {
 			
-				$settings_link = '<a href="options-general.php?page=ttsengine">Settings</a>';
+				$settings_link = '<a href="options-general.php?page=ttsengine-settings">Settings</a>';
 				array_unshift( $links, $settings_link );
 				return $links;
 				
@@ -275,10 +295,40 @@ License: GPLv2
 				update_option( 'ttsengine_version', TTS_ENGINE_VERSION );
 
 			}
+			
+			// Language selection menu for admin settings page
+			public static function display_langauge_menu() {
+				
+				global $languages_data, $language, $language_phrases;	
+				$select = '<select name="language-selector">';
+				foreach ( $languages_data as $lang => $phrases ) {
+					$selected = ( $lang === $language ) ? 'selected' : '';
+					$select.= '<option value='.$lang.' '.$selected.'>'.$phrases[0].'</option>';
+				}
+				$select.= '</select>';
+				return $select;
+				
+			}
+			
+			// Gets the users' language setting
+			public static function get_language_setting() {
+				
+				global $languages_data, $language, $language_phrases;
+				$language = get_option('ttsengine_language');
+				if ( empty( $language ) )
+					$language = 'usenglish';
+				
+				$languages_data = TTS_Engine_Utilities::get_language_data();
+				$language_phrases = $languages_data[ $language ];
+				
+			}
+			
 		}
 		
-		// Add the actions and filters to the appropriate wordpress hooks
+		// Get the language data and settings when a page loads
+		Scream_TTS_Engine::get_language_setting();
 		
+		// Add the actions and filters to the appropriate wordpress hooks
 		if ( is_admin() ) {
 		
 			add_action( 'admin_menu', 'Scream_TTS_Engine::create_admin_options' );
@@ -287,7 +337,7 @@ License: GPLv2
 			
 		}
 		else {
-
+	
 			add_action( 'wp_enqueue_scripts', 'Scream_TTS_Engine::enqueue_head_elements' );
 			add_filter( 'the_content', 'Scream_TTS_Engine::add_plugin_elements' );
 			add_action( 'wp_footer', 'Scream_TTS_Engine::localize_script' );
